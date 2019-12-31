@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Linq;
-
 using GradeBook.Enums;
 using System.Collections.Generic;
 using System.IO;
@@ -11,13 +10,15 @@ namespace GradeBook.GradeBooks
 {
     public abstract class BaseGradeBook
     {
+        public bool IsWeighted { get; set; }
         public string Name { get; set; }
         public GradeBookType Type { get; set; }
         public List<Student> Students { get; set; }
 
-        public BaseGradeBook(string name)
+        public BaseGradeBook(string name, bool isWeighted)
         {
             Name = name;
+            IsWeighted = isWeighted;
             Students = new List<Student>();
         }
 
@@ -38,6 +39,7 @@ namespace GradeBook.GradeBooks
                 Console.WriteLine("student {0} was not found, try again.", name);
                 return;
             }
+
             Students.Remove(student);
         }
 
@@ -51,6 +53,7 @@ namespace GradeBook.GradeBooks
                 Console.WriteLine("student {0} was not found, try again.", name);
                 return;
             }
+
             student.AddGrade(score);
         }
 
@@ -64,6 +67,7 @@ namespace GradeBook.GradeBooks
                 Console.WriteLine("student {0} was not found, try again.", name);
                 return;
             }
+
             student.RemoveGrade(score);
         }
 
@@ -107,20 +111,32 @@ namespace GradeBook.GradeBooks
 
         public virtual double GetGPA(char letterGrade, StudentType studentType)
         {
+            int baseScore;
             switch (letterGrade)
             {
                 case 'A':
-                    return 4;
+                    baseScore = 4;
+                    break;
                 case 'B':
-                    return 3;
+                    baseScore = 3;
+                    break;
                 case 'C':
-                    return 2;
+                    baseScore = 2;
+                    break;
                 case 'D':
-                    return 1;
+                    baseScore = 1;
+                    break;
                 case 'F':
-                    return 0;
+                    baseScore = 0;
+                    break;
+                default:
+                    baseScore = 0;
+                    break;
             }
-            return 0;
+
+            return (IsWeighted && (studentType == StudentType.Honors || studentType == StudentType.DualEnrolled))
+                ? baseScore + 1
+                : baseScore;
         }
 
         public virtual void CalculateStatistics()
@@ -139,7 +155,8 @@ namespace GradeBook.GradeBooks
                 student.LetterGrade = GetLetterGrade(student.AverageGrade);
                 student.GPA = GetGPA(student.LetterGrade, student.Type);
 
-                Console.WriteLine("{0} ({1}:{2}) GPA: {3}.", student.Name, student.LetterGrade, student.AverageGrade, student.GPA);
+                Console.WriteLine("{0} ({1}:{2}) GPA: {3}.", student.Name, student.LetterGrade, student.AverageGrade,
+                    student.GPA);
                 allStudentsPoints += student.AverageGrade;
 
                 switch (student.Enrollment)
@@ -175,19 +192,29 @@ namespace GradeBook.GradeBooks
             //#todo refactor into it's own method with calculations performed here
             Console.WriteLine("Average Grade of all students is " + (allStudentsPoints / Students.Count));
             if (campusPoints != 0)
-                Console.WriteLine("Average for only local students is " + (campusPoints / Students.Where(e => e.Enrollment == EnrollmentType.Campus).Count()));
+                Console.WriteLine("Average for only local students is " +
+                                  (campusPoints / Students.Where(e => e.Enrollment == EnrollmentType.Campus).Count()));
             if (statePoints != 0)
-                Console.WriteLine("Average for only state students (excluding local) is " + (statePoints / Students.Where(e => e.Enrollment == EnrollmentType.State).Count()));
+                Console.WriteLine("Average for only state students (excluding local) is " +
+                                  (statePoints / Students.Where(e => e.Enrollment == EnrollmentType.State).Count()));
             if (nationalPoints != 0)
-                Console.WriteLine("Average for only national students (excluding state and local) is " + (nationalPoints / Students.Where(e => e.Enrollment == EnrollmentType.National).Count()));
+                Console.WriteLine("Average for only national students (excluding state and local) is " +
+                                  (nationalPoints / Students.Where(e => e.Enrollment == EnrollmentType.National)
+                                       .Count()));
             if (internationalPoints != 0)
-                Console.WriteLine("Average for only international students is " + (internationalPoints / Students.Where(e => e.Enrollment == EnrollmentType.International).Count()));
+                Console.WriteLine("Average for only international students is " +
+                                  (internationalPoints /
+                                   Students.Where(e => e.Enrollment == EnrollmentType.International).Count()));
             if (standardPoints != 0)
-                Console.WriteLine("Average for students excluding honors and duel enrollment is " + (standardPoints / Students.Where(e => e.Type == StudentType.Standard).Count()));
+                Console.WriteLine("Average for students excluding honors and duel enrollment is " +
+                                  (standardPoints / Students.Where(e => e.Type == StudentType.Standard).Count()));
             if (honorPoints != 0)
-                Console.WriteLine("Average for only honors students is " + (honorPoints / Students.Where(e => e.Type == StudentType.Honors).Count()));
+                Console.WriteLine("Average for only honors students is " +
+                                  (honorPoints / Students.Where(e => e.Type == StudentType.Honors).Count()));
             if (dualEnrolledPoints != 0)
-                Console.WriteLine("Average for only duel enrolled students is " + (dualEnrolledPoints / Students.Where(e => e.Type == StudentType.DualEnrolled).Count()));
+                Console.WriteLine("Average for only duel enrolled students is " +
+                                  (dualEnrolledPoints /
+                                   Students.Where(e => e.Type == StudentType.DualEnrolled).Count()));
         }
 
         public virtual void CalculateStudentStatistics(string name)
@@ -196,7 +223,8 @@ namespace GradeBook.GradeBooks
             student.LetterGrade = GetLetterGrade(student.AverageGrade);
             student.GPA = GetGPA(student.LetterGrade, student.Type);
 
-            Console.WriteLine("{0} ({1}:{2}) GPA: {3}.", student.Name, student.LetterGrade, student.AverageGrade, student.GPA);
+            Console.WriteLine("{0} ({1}:{2}) GPA: {3}.", student.Name, student.LetterGrade, student.AverageGrade,
+                student.GPA);
             Console.WriteLine();
             Console.WriteLine("Grades:");
             foreach (var grade in student.Grades)
@@ -230,18 +258,18 @@ namespace GradeBook.GradeBooks
         {
             // Get GradeBookType from the GradeBook.Enums namespace
             var gradebookEnum = (from assembly in AppDomain.CurrentDomain.GetAssemblies()
-                                 from type in assembly.GetTypes()
-                                 where type.FullName == "GradeBook.Enums.GradeBookType"
-                                 select type).FirstOrDefault();
+                from type in assembly.GetTypes()
+                where type.FullName == "GradeBook.Enums.GradeBookType"
+                select type).FirstOrDefault();
 
             var jobject = JsonConvert.DeserializeObject<JObject>(json);
             var gradeBookType = jobject.Property("Type")?.Value?.ToString();
 
             // Check if StandardGradeBook exists
             if ((from assembly in AppDomain.CurrentDomain.GetAssemblies()
-                 from type in assembly.GetTypes()
-                 where type.FullName == "GradeBook.GradeBooks.StandardGradeBook"
-                 select type).FirstOrDefault() == null)
+                    from type in assembly.GetTypes()
+                    where type.FullName == "GradeBook.GradeBooks.StandardGradeBook"
+                    select type).FirstOrDefault() == null)
                 gradeBookType = "Base";
             else
             {
@@ -253,18 +281,18 @@ namespace GradeBook.GradeBooks
 
             // Get GradeBook from the GradeBook.GradeBooks namespace
             var gradebook = (from assembly in AppDomain.CurrentDomain.GetAssemblies()
-                             from type in assembly.GetTypes()
-                             where type.FullName == "GradeBook.GradeBooks." + gradeBookType + "GradeBook"
-                             select type).FirstOrDefault();
+                from type in assembly.GetTypes()
+                where type.FullName == "GradeBook.GradeBooks." + gradeBookType + "GradeBook"
+                select type).FirstOrDefault();
 
 
             //protection code
             if (gradebook == null)
                 gradebook = (from assembly in AppDomain.CurrentDomain.GetAssemblies()
-                             from type in assembly.GetTypes()
-                             where type.FullName == "GradeBook.GradeBooks.StandardGradeBook"
-                             select type).FirstOrDefault();
-            
+                    from type in assembly.GetTypes()
+                    where type.FullName == "GradeBook.GradeBooks.StandardGradeBook"
+                    select type).FirstOrDefault();
+
             return JsonConvert.DeserializeObject(json, gradebook);
         }
     }
